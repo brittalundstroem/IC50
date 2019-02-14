@@ -1,0 +1,21 @@
+IC50 report:  2019-02-14 14:39:25  for:  ic50
+R version:  3.5.1  and packages: [1] "drc"  "MASS"
+
+Model fitted: Weibull (type 1) with lower limit at 0 (3 parms)
+
+Parameter estimates:
+
+                     Estimate  Std. Error t-value   p-value    
+slope:(Intercept)  -1.3884621   0.1458068 -9.5226 9.473e-08 ***
+high:(Intercept)  100.1244915   1.7018223 58.8337 < 2.2e-16 ***
+IC50:(Intercept)    0.1617578   0.0084854 19.0631 6.316e-12 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error:
+
+ 4.89235 (15 degrees of freedom)
+################################################### 
+IC50:  0.210623 
+IC50 CI l:  0.184632  for CI =  0.95 
+IC50 CI h:  0.236614  for CI =  0.95 

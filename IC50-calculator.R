@@ -7,8 +7,8 @@
 ################################################################################
 
 library(drc)
-library(ggplot2)
-library(ic50)
+#library(ggplot2)
+#library(ic50)
 
 # for test
 #library(PharmacoGx) 
@@ -35,41 +35,87 @@ library(ic50)
    read.csv(raw.path, sep=";")
  }
 
+# evaluate the best model function
+  best_fit <- function(df, rank = 1){
+   # function to get the best fitting model from a list
+   # a first model is  fit using drm()
+   # then the funciton mselect() is used to select the best model
+   # by default the best fit model is return (rank = 1), we can select a second best using another rank
+   #
+   # the first part of the function is complicated and I don't know why it has to be like this
+   # otherwise the mselect() function doesn't work within a function
+   #
+   # Args:
+   #   df: dataframe with 2 col an n rows, col1: concentrations, col2: value
+   #   rank: integer to select wich model to select. default = best model (rank = 1)
+   #
+   # Returns:
+   #  Vector of parameters ordered by the best to the worst fit
+   #
+   mf <- match.call(expand.dots = FALSE)
+   m <- match(c("df"), names(mf), 0L)
+   data.name <- as.character(mf[m])
+   model1 <- eval(parse(text = paste0('drm(value ~ conz, data = ', data.name, ', fct = LL.4())')
+   )
+   )
+   
+   # compare different models
+   M1 <- drc::mselect(model1, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.3(), W2.4()
+   )
+   )
+   # return model names according to their performance
+   best <- row.names(M1)[rank]
+   return(best)
+ }
+ 
+ 
 # run analysis 
-ic50.calc <- function(df, ci = 0.95) {
+ic50.calc <- function(df, bestmodel, ci = 0.95) {
   # calculate IC50 using drm
+  # evaluate the best model returned with the best_fit() function
+  # and builds the final formula for the best model
   #
   # Args:
   #  df: dataframe with 2 col an n rows, col1: concentrations, col2: value
+  #  bestmodel: a character string corresponding to the best fitting function
   #  
   #  Returns:
-  #    list with drm object, confint, low and high
+  #    list with drm object, and a matrix of IC50 with CI
   #
   #  TODO: 
   #
   
-  fit <- drm(value~conz, data=df, 
-               # currently, the change from LL.4 to LL.3 is my major change, which affects the rest of the code
-             # since a concentration of 0% of any compound is expected to have 0% inhibition,
-             # I believe a 3 parameter model (forcing lower assymptote to 0) is adequate.
-             # Indeed, using LL.4, the test dataset gave a large CI for lower asymptote which included absurd negative values.
-             # One might even argue, wheter a 2 parameter model would be adequate, fixing maximum value at 100,
-             # given that a large concentration of any compound would lead to 100% inhibition.
-             # The latter is rather theoretical (toxicology dogma: "Any compound is toxic, it's the dosage that's important").
-             # However I'm not sure its of practical use, therefore I thought the 3 parameter model would better suit the needs.
-             fct=LL.3(names=c("slope","high","IC50")),
-             type="continuous")
+  # define the parameter names
+  arg_3 <- "(names = c('slope', 'high', 'IC50'))"
+  arg_4 <- "(names = c('slope', 'low', 'high', 'IC50'))"
+  arg_5 <- "(names = c('slope', 'low', 'high', 'IC50', 'f'))"
   
-  fit.confint <- confint(fit, level = ci)
-  fit.conf.low <- fit.confint[,1] # conf.low
-  fit.conf.hig <- fit.confint[,2] # conf.high
+  # select the model function and parameter list based on the selected one
+  if (bestmodel %in% c("LL.3", "W1.3", "W2.3")){
+    funct <- paste0(bestmodel, arg_3)
+  } else if (bestmodel %in% c("LL.4", "W1.4", "W2.4")){
+    funct <- paste0(bestmodel, arg_4)
+  } else if (bestmodel %in% c("LL.5")){
+    funct <- paste0(bestmodel, arg_5)
+  }
+  else {
+    stop("invalid model function selected")
+  }
   
-  ret.val <- list(fit, fit.confint, fit.conf.low, fit.conf.hig)
+  # fit the model with corresponding model function and parameters
+  fit <- drm(value ~ conz, data = df, 
+             fct = eval(parse(text = funct)),
+             type = "continuous")
+  
+  # Extract IC50 and calculate confidence interval
+  fit.confint <- ED(fit, 50,
+                    interval = "delta",
+                    level = ci,
+                    display = FALSE)
+  
+  # put together the model and IC in a list
+  ret.val <- list(fit, fit.confint)
 
-  # test and debug
-  #summary(fit.d)
-  
-  
   return(ret.val)
   
 }
@@ -86,23 +132,23 @@ plot.ic50 <- function(fit, raw.d, nam="ic50") {
   #  Returns:
   #    None
   #
-  #  TODO: 
+  #  TODO: adapt axes limit depending on CI min and max values
   #
   
   # get min, max for plot margins
-  min.v <- min(raw.d$conz, fit[[3]][3]) # we might change raw.d$conz to raw.d[, 1] since it depends on the table, if someone changes the column name say to Konz, the formula won't work
-  max.v <- max(raw.d$conz, fit[[4]][3]) # same as line 93
+  min.v <- min(raw.d$conz, fit[[2]][1, 3])
+  max.v <- max(raw.d$conz, fit[[2]][1, 4])
   
   # plot
   pdf(paste(nam, ".pdf"))
-  plot(fit[[1]], main=nam, xlim = c(min.v - 1, max.v + 1), 
-       ylim = c(0, 100),  # not sure if you like it, I like to have an overview of the curve. With the test dataset, we see for instance, that more lower concentrations would have helped in better defining the curve.
+  plot(fit[[1]], main = nam,
+       xlim = c(min.v - 1, max.v + 1), 
+       ylim = c(0, 100),
        xlab = "concentration")
-  #plot(fit[[1]], type = "confidence", confidence.level = 0.95, add = TRUE)
   points(raw.d$conz, raw.d$value, col="blue", pch = "x")
-  abline(v=fit[[1]]$parmMat[3], col = "red")
-  abline(v=fit[[3]][3])
-  abline(v=fit[[4]][3])
+  abline(v = fit[[2]][1, 1], col = "red")
+  abline(v = fit[[2]][1, 3])
+  abline(v = fit[[2]][1, 4])
   dev.off()
   
 }
@@ -134,20 +180,20 @@ print.res <- function(fit.d, raw.d, CI=0.95, res.nam="result") {
   print(summary(fit.d[[1]]))
   
   cat("")
-  cat("###################################################")
-  cat(paste("IC50: ", round(fit.d[[1]]$parmMat[3], 6)))
-  cat(paste("IC50 CI l: ", round(fit.d[[3]][3], 6), " for CI = ", CI))
-  cat(paste("IC50 CI h: ", round(fit.d[[4]][3], 6), " for CI = ", CI))
+  cat("###################################################", "\n")
+  cat(paste("IC50: ", round(fit.d[[2]][1, 1], 6)), "\n")
+  cat(paste("IC50 CI l: ", round(fit.d[[2]][1, 3], 6), " for CI = ", CI), "\n")
+  cat(paste("IC50 CI h: ", round(fit.d[[2]][1, 4], 6), " for CI = ", CI), "\n")
   cat("")
    
-  if (fit.d[[1]]$parmMat[3] < min(raw.d$conz)) {
+  if (fit.d[[2]][1, 1] < min(raw.d$conz)) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 smaller than lowest concentration")
     cat("###################################################")
   } 
   
-  if (fit.d[[1]]$parmMat[3] > max(raw.d$conz)) {
+  if (fit.d[[2]][1, 1] > max(raw.d$conz)) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 bigger than highest concentration")
@@ -157,7 +203,7 @@ print.res <- function(fit.d, raw.d, CI=0.95, res.nam="result") {
 }
 
 
-ic50calc <- function(f.path, nam="ic50", CI=0.95) {
+ic50calc <- function(f.path, nam="ic50", CI=0.95, rank = 1) {
   # main function
   #
   # Args:
@@ -172,10 +218,13 @@ ic50calc <- function(f.path, nam="ic50", CI=0.95) {
   #
   
   # import data
-  iraw.d <- import.raw(f.path)
+  iraw.d <<- import.raw(f.path)
+  
+  # find the best fitting formula
+  best.fit <- best_fit(iraw.d, rank)
   
   # make fit and ci
-  fit.d <- ic50.calc(iraw.d, CI)
+  fit.d <- ic50.calc(iraw.d, best.fit, CI)
   
   # plot fit
   plot.ic50(fit.d, iraw.d, nam)
@@ -189,7 +238,7 @@ ic50calc <- function(f.path, nam="ic50", CI=0.95) {
 
 # run script
 f.path <- "Brittas_Samples/a1.csv"
-nam="ic50"
+nam <- "ic50"
 CI <- 0.95
 
-ic50calc(f.path, nam, CI)
+ic50calc(f.path, nam, CI, 1)
