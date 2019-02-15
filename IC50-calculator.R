@@ -52,6 +52,14 @@ library(drc)
    # Returns:
    #  Vector of parameters ordered by the best to the worst fit
    #
+
+   # Check if the function can be fitted
+    fcheck <- try(drm(value ~ conz, data = df, fct = LL.4()), silent = TRUE)
+    if (inherits(fcheck, 'try-error')) {
+      # abort if no function can be fitted
+      stop("No function could be fitted please check the dataset")
+      }
+    
    mf <- match.call(expand.dots = FALSE)
    m <- match(c("df"), names(mf), 0L)
    data.name <- as.character(mf[m])
