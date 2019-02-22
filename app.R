@@ -3,6 +3,100 @@ library(drc)
 
 # Define functions ----
 
+
+my_mselect <- function (object, fctList = NULL, nested = FALSE,
+                        sorted = c("IC", "Res var", "Lack of fit", "no"), linreg = FALSE, icfct = AIC) {
+  sorted <- match.arg(sorted)
+  if (!is.logical(nested)) {
+    stop("'nested' argument takes only the values: FALSE, TRUE")
+  }
+  contData <- identical(object$type, "continuous")
+  nestedInd <- 3 + contData + nested
+  mc <- match.call()
+  lenFL <- length(fctList)
+  retMat <- matrix(0, lenFL + 1, 3 + contData + nested)
+  retMat[1, 1] <- logLik(object)
+  retMat[1, 2] <- icfct(object)
+  retMat[1, 3] <- modelFit(object)[2, 5]
+  if (contData) {
+    tryRV <- try(summary(object)$resVar, silent = TRUE)
+    if (!inherits("tryRV", "try-error")) {
+      retMat[1, 4] <- tryRV
+    }
+    else {
+      retMat[1, 4] <- NA
+    }
+  }
+  if (nested) {
+    retMat[1, nestedInd] <- NA
+  }
+  fctList2 <- rep("", lenFL + 1)
+  fctList2[1] <- object$fct$name
+  if (!is.null(fctList)) {
+    prevObj <- object
+    for (i in 1:lenFL) {
+      tempObj <- try(update(object, fct = fctList[[i]],
+                            data = object$origData), 
+                     silent = TRUE)
+      fctList2[i + 1] <- fctList[[i]]$name
+      if (!inherits(tempObj, "try-error")) {
+        retMat[i + 1, 1] <- logLik(tempObj)
+        retMat[i + 1, 2] <- icfct(tempObj)
+        retMat[i + 1, 3] <- modelFit(tempObj)[2, 5]
+        if (contData) {
+          tryRV2 <- try(summary(tempObj)$resVar, silent = TRUE)
+          if (!inherits("tryRV2", "try-error")) {
+            retMat[i + 1, 4] <- tryRV2
+          }
+          else {
+            retMat[i + 1, 4] <- NA
+          }
+        }
+        if (nested) {
+          retMat[i + 1, nestedInd] <- anova(prevObj, 
+                                            tempObj, details = FALSE)[2, 5]
+        }
+      }
+      else {
+        retMat[i + 1, ] <- NA
+      }
+      prevObj <- tempObj
+    }
+  }
+  rownames(retMat) <- as.vector(unlist(fctList2))
+  cnames <- c("logLik", "IC", "Lack of fit")
+  if (contData) {
+    cnames <- c(cnames, "Res var")
+  }
+  if (nested) {
+    cnames <- c(cnames, "Nested F test")
+  }
+  colnames(retMat) <- cnames
+  if (linreg) {
+    drcData <- as.data.frame(object$data[, c(2, 1)])
+    names(drcData) <- c("yVec", "xVec")
+    linFitList <- list(lm(yVec ~ xVec, data = drcData), lm(yVec ~ 
+                                                             xVec + I(xVec * xVec), data = drcData), lm(yVec ~ 
+                                                                                                          xVec + I(xVec * xVec) + I(xVec * xVec * xVec), data = drcData))
+    linModMat <- matrix(unlist(lapply(linFitList, function(listObj) {
+      c(logLik(listObj), icfct(listObj), NA, (summary(listObj)$sigma)^2)
+    })), 3, 4, byrow = TRUE)
+    rownames(linModMat) <- c("Lin", "Quad", "Cubic")
+    colnames(linModMat) <- cnames[1:4]
+    if (nested) {
+      retMat <- retMat[, 1:4]
+    }
+    retMat <- rbind(retMat, linModMat)
+  }
+  if (sorted != "no") {
+    return(retMat[order(retMat[, sorted]), ])
+  }
+  else {
+    return(retMat)
+  }
+}
+
+
 first_function <- function(df){
   # This is the fist drm function to be calculated.
   # Tests whether a model can be fit
@@ -23,11 +117,27 @@ first_function <- function(df){
   }
 
   # fit the first model
-  model1 <- drm(df[, 2] ~ df[, 1],
-                data = df,
+  #data.name <- deparse(substitute(df))
+  #mf <- match.call(expand.dots = FALSE)
+  #m <- match(c("df"), names(mf), 0L)
+  #data.name <- as.character(mf[m])
+  #data.name <- substring(data.name, 1, 5)
+  #model1 <- drm(df[, 2] ~ df[, 1],
+  dt <- data.frame(value = numeric(0),
+                   conz = numeric(0)
+                   )
+  for(i in 1:nrow(df)){
+    dt <- rbind(dt, df[i, ])
+  }
+    
+  #model1 <- eval(parse(text = paste0('drm(value ~ conz, data = ', data.name, ', fct = LL.4())')))
+  model1 <- drm(value ~ conz,
+                data = dt,
                 fct = LL.4())
+  
   return(model1)
 }
+#model1 <- eval(parse(text = paste0('drm(value ~ conz, data = ', data.name, ', fct = LL.4())')))
 
 
 best_model <- function(model_ranks, df, rank = 1) {
@@ -63,7 +173,7 @@ best_model <- function(model_ranks, df, rank = 1) {
   }
   
   # fit the model with corresponding model function and parameters
-  fit <- drm(df[, 2] ~ df[, 1],
+  fit <- drm(value ~ conz,
              data = df,
              fct = eval(parse(text = funct)),
              type = "continuous")
@@ -273,7 +383,7 @@ ui <- fluidPage(
 # Define server logic to read selected file ----
 server <- function(input, output) {
   
-  # Reactive functiont to load the dataset -----
+  # Reactive function to load the dataset -----
   mydat <- reactive({
     
     # input$file1 will be NULL initially. After the user selects
@@ -307,10 +417,29 @@ server <- function(input, output) {
   
   # functions to calculate the best model and CI from dataset -----
   bestmodel <- eventReactive(input$RunIC50, {
-    #mydat <- data.frame(mydat())
+    #mydat <- as.data.frame(mydat())
     firstmodel <- first_function(mydat())
     
-    ModelRanks <- mselect(firstmodel, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.3(), W2.4()))
+    #fcheck <- try(drm(value ~ conz,
+    #                  data = mydat(),
+    #                  fct = LL.4()), silent = TRUE)
+    #if (inherits(fcheck, 'try-error')) {
+    #  # abort if no function can be fitted
+    #  stop("No function could be fitted please check the dataset")
+    #}
+
+    #dt <- data.frame(value = numeric(0),
+    #                 conz = numeric(0)
+    #                 )
+    #for(i in 1:nrow(mydat())){
+    #  dt <- rbind(dt, df[i, ])
+    #}
+
+    #firstmodel <- drm(dt[, value] ~ dt[, conz],
+                      #data = ,
+    #                  fct = LL.4())
+    
+    ModelRanks <- my_mselect(firstmodel, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.3(), W2.4()))
     
     myrank <- as.numeric(input$RankSelect)
     best_model(ModelRanks, mydat(), myrank)
