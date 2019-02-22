@@ -116,7 +116,7 @@ plot.ic50 <- function(fit, CImat, nam="ic50") {
 
 
 # export results
-print.res <- function(fit.d, raw.d, CI=0.95, res.nam="result") {
+print.res <- function(fit.d, CImat, raw.d, CI=0.95, res.nam="result") {
   # export ic50 fit to results
   
   # Args:
@@ -130,7 +130,7 @@ print.res <- function(fit.d, raw.d, CI=0.95, res.nam="result") {
   
   #  TODO: 
   
-  sink(paste(res.nam, ".txt"))
+  #sink(paste(res.nam, ".txt"))
   
   cat(paste("IC50 report: ", Sys.time(), " for: ", res.nam))
   cat("\n")
@@ -138,29 +138,29 @@ print.res <- function(fit.d, raw.d, CI=0.95, res.nam="result") {
   print(names(sessionInfo()$otherPkgs))
   #a <- Sys.time()
   
-  print(summary(fit.d[[1]]))
+  print(summary(fit.d))
   
   cat("")
   cat("###################################################", "\n")
-  cat(paste("IC50: ", round(fit.d[[2]][1, 1], 6)), "\n")
-  cat(paste("IC50 CI l: ", round(fit.d[[2]][1, 3], 6), " for CI = ", CI), "\n")
-  cat(paste("IC50 CI h: ", round(fit.d[[2]][1, 4], 6), " for CI = ", CI), "\n")
+  cat(paste("IC50: ", round(CImat[1, 1], 4)), "\n")
+  cat(paste("IC50 CI l: ", round(CImat[1, 3], 4), " for CI = ", CI), "\n")
+  cat(paste("IC50 CI h: ", round(CImat[1, 4], 4), " for CI = ", CI), "\n")
   cat("")
   
-  if (fit.d[[2]][1, 1] < min(raw.d$conz)) {
+  if (CImat[1, 1] < min(raw.d$conz)) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 smaller than lowest concentration")
     cat("###################################################")
   } 
   
-  if (fit.d[[2]][1, 1] > max(raw.d$conz)) {
+  if (CImat[1, 1] > max(raw.d$conz)) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 bigger than highest concentration")
     cat("###################################################")
   } 
-  sink()
+  #sink()
 }
 
 
@@ -250,10 +250,10 @@ ui <- fluidPage(
                  plotOutput("IC50plot"),
                  
                  # Horizontal line ----
-                 tags$hr()#,
+                 tags$hr(),
                  
                  # Output: Summary Output IC50 calculation ---
-                 #verbatimTextOutput("IC50summary")
+                 verbatimTextOutput("IC50summary")
                  #verbatimTextOutput("output$dataset")
                )
              )
@@ -330,6 +330,10 @@ server <- function(input, output) {
   })
   
   # functions to generate the textoutput -----
+  mysummary <- eventReactive(input$RunIC50, {
+    print.res(bestmodel(), bestmodelCI(), mydat(), CI = input$CI/100)
+  })
+  output$IC50summary <- renderPrint(mysummary() )
   
 }
 
