@@ -6,6 +6,8 @@ library(drc)
 
 my_mselect <- function (object, fctList = NULL, nested = FALSE,
                         sorted = c("IC", "Res var", "Lack of fit", "no"), linreg = FALSE, icfct = AIC) {
+  # this is an adapted version of the function drc::mselect
+  # the difference is to add the source of the data in order to make the whole selection work
   sorted <- match.arg(sorted)
   if (!is.logical(nested)) {
     stop("'nested' argument takes only the values: FALSE, TRUE")
@@ -36,7 +38,7 @@ my_mselect <- function (object, fctList = NULL, nested = FALSE,
     prevObj <- object
     for (i in 1:lenFL) {
       tempObj <- try(update(object, fct = fctList[[i]],
-                            data = object$origData), 
+                            data = object$origData), # <--- line added
                      silent = TRUE)
       fctList2[i + 1] <- fctList[[i]]$name
       if (!inherits(tempObj, "try-error")) {
@@ -101,7 +103,7 @@ first_function <- function(df){
   # This is the fist drm function to be calculated.
   # Tests whether a model can be fit
   # if yes, it returns a first model which can then be compared
-  # to similar models but using other functino
+  # to similar models but using other function
   #
   # Args: 
   #  dataframe
@@ -116,13 +118,7 @@ first_function <- function(df){
     stop("No function could be fitted please check the dataset")
   }
 
-  # fit the first model
-  #data.name <- deparse(substitute(df))
-  #mf <- match.call(expand.dots = FALSE)
-  #m <- match(c("df"), names(mf), 0L)
-  #data.name <- as.character(mf[m])
-  #data.name <- substring(data.name, 1, 5)
-  #model1 <- drm(df[, 2] ~ df[, 1],
+  # construct an empty dataframe to be filled with the data
   dt <- data.frame(value = numeric(0),
                    conz = numeric(0)
                    )
@@ -130,15 +126,13 @@ first_function <- function(df){
     dt <- rbind(dt, df[i, ])
   }
     
-  #model1 <- eval(parse(text = paste0('drm(value ~ conz, data = ', data.name, ', fct = LL.4())')))
+  # build the model
   model1 <- drm(value ~ conz,
                 data = dt,
                 fct = LL.4())
   
   return(model1)
 }
-#model1 <- eval(parse(text = paste0('drm(value ~ conz, data = ', data.name, ', fct = LL.4())')))
-
 
 best_model <- function(model_ranks, df, rank = 1) {
   # fits the "best" model according to the choice of the user
@@ -227,7 +221,7 @@ plot.ic50 <- function(fit, CImat, nam="ic50") {
 
 # export results
 print.res <- function(fit.d, CImat, raw.d, CI=0.95, res.nam="result") {
-  # export ic50 fit to results
+  # function to build the model summary and the CI
   
   # Args:
   #  fit: list from ic50.calc()
@@ -236,7 +230,7 @@ print.res <- function(fit.d, CImat, raw.d, CI=0.95, res.nam="result") {
   #  res.nam: string (name for pdf file)
   
   #  Returns:
-  #    None
+  #    a (long) character string
   
   #  TODO: 
   
@@ -274,10 +268,6 @@ print.res <- function(fit.d, CImat, raw.d, CI=0.95, res.nam="result") {
 }
 
 
-
-
-
-
 # User interface ----
 
 ui <- fluidPage(
@@ -309,13 +299,14 @@ ui <- fluidPage(
                               choices = c(Comma = ",",
                                           Semicolon = ";",
                                           Tab = "\t"),
-                              selected = ";"),
+                              selected = ";")#,
+                 
                  # Input: Select quotes ----
-                 radioButtons("quote", "Quote",
-                              choices = c(None = "",
-                                          "Double Quote" = '"',
-                                          "Single Quote" = "'"),
-                              selected = '"')
+                 #radioButtons("quote", "Quote",
+                 #              choices = c(None = "",
+                 #                         "Double Quote" = '"',
+                #                          "Single Quote" = "'"),
+                #              selected = '"')
                ),
                
                # Main Panel: Display inputs ----
@@ -417,30 +408,14 @@ server <- function(input, output) {
   
   # functions to calculate the best model and CI from dataset -----
   bestmodel <- eventReactive(input$RunIC50, {
-    #mydat <- as.data.frame(mydat())
+    
+    # check if model fitting feasible and build the first model
     firstmodel <- first_function(mydat())
-    
-    #fcheck <- try(drm(value ~ conz,
-    #                  data = mydat(),
-    #                  fct = LL.4()), silent = TRUE)
-    #if (inherits(fcheck, 'try-error')) {
-    #  # abort if no function can be fitted
-    #  stop("No function could be fitted please check the dataset")
-    #}
 
-    #dt <- data.frame(value = numeric(0),
-    #                 conz = numeric(0)
-    #                 )
-    #for(i in 1:nrow(mydat())){
-    #  dt <- rbind(dt, df[i, ])
-    #}
-
-    #firstmodel <- drm(dt[, value] ~ dt[, conz],
-                      #data = ,
-    #                  fct = LL.4())
-    
+    # build list of models ranked according to AIC
     ModelRanks <- my_mselect(firstmodel, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.3(), W2.4()))
     
+    # select the model desired from the input
     myrank <- as.numeric(input$RankSelect)
     best_model(ModelRanks, mydat(), myrank)
   })
@@ -465,8 +440,6 @@ server <- function(input, output) {
   output$IC50summary <- renderPrint(mysummary() )
   
 }
-
-
 
 
 # The Shiny app function # ----------------
