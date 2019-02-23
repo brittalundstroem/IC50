@@ -1,7 +1,7 @@
 An IC 50 Calculator
 =======================
 
-The calculator needs packages "shiny" and "drc" to work properly.
+The calculator needs the R packages **shiny** and **drc** to work properly.
 
 The data need to be imported as a .csv file. The concentration has to be in the first column and the inhibition values in the second. Make sure your table follows this structure before you upload the file.
 
@@ -17,12 +17,11 @@ The data need to be imported as a .csv file. The concentration has to be in the 
 The fitted line and data will be plotted. In addition, the raw data are plotted as blue stars.
 
 
-It is strongly recommended to compare several models, since the AIC is no more than an automated selection process. After changes are made, the plot and ouptut can be updated by clicking again on `(re-)calculate IC50`.
+I strongly recommended to compare several models, since the AIC is no more than an automated selection process. After changes are made, the plot and ouptut can be updated by clicking again on `(re-)calculate IC50`.
 
-If the dataset seems to be uploaded but no model can be fit, an output will be printed asking to check the values of your data.
+If the dataset seems to be uploaded but no model can be fit, a message will be printed asking you to check your dataset.
 
 
 
 
 2019 Dominic Rittler, Nelson Marreros
-
