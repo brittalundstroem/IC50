@@ -111,24 +111,21 @@ first_function <- function(df){
   # Output:
   #  a model of class 'drm'
   #
+  
   # Check if the function can be fitted
-  fcheck <- try(drm(value ~ conz, data = df, fct = LL.4()), silent = TRUE)
+  fcheck <- try(drm(value ~ conz,
+                    data = df,
+                    fct = LL.4()),
+                silent = TRUE)
   if (inherits(fcheck, 'try-error')) {
     # abort if no function can be fitted
     stop("No function could be fitted please check the dataset")
   }
 
-  # construct an empty dataframe to be filled with the data
-  dt <- data.frame(value = numeric(0),
-                   conz = numeric(0)
-                   )
-  for(i in 1:nrow(df)){
-    dt <- rbind(dt, df[i, ])
-  }
     
   # build the model
   model1 <- drm(value ~ conz,
-                data = dt,
+                data = df,
                 fct = LL.4())
   
   return(model1)
@@ -240,25 +237,24 @@ print.res <- function(fit.d, CImat, raw.d, CI=0.95, res.nam="result") {
   cat("\n")
   cat(paste("R version: ", getRversion()), " and packages: ")
   print(names(sessionInfo()$otherPkgs))
-  #a <- Sys.time()
-  
+
   print(summary(fit.d))
   
   cat("")
   cat("###################################################", "\n")
-  cat(paste("IC50: ", round(CImat[1, 1], 4)), "\n")
-  cat(paste("IC50 CI l: ", round(CImat[1, 3], 4), " for CI = ", CI), "\n")
-  cat(paste("IC50 CI h: ", round(CImat[1, 4], 4), " for CI = ", CI), "\n")
+  cat(paste("IC50:     ", round(CImat[1, 1], 4)), "\n")
+  cat(paste("IC50 LCL: ", round(CImat[1, 3], 4), " for CI =", CI), "\n")
+  cat(paste("IC50 UCL: ", round(CImat[1, 4], 4), " for CI =", CI), "\n")
   cat("")
   
-  if (CImat[1, 1] < min(raw.d$conz)) {
+  if (CImat[1, 1] < min(raw.d[, 1])) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 smaller than lowest concentration")
     cat("###################################################")
   } 
   
-  if (CImat[1, 1] > max(raw.d$conz)) {
+  if (CImat[1, 1] > max(raw.d[, 1])) {
     cat("###################################################")
     cat("Extrapolation: ")
     cat("IC50 bigger than highest concentration")
@@ -294,6 +290,7 @@ ui <- fluidPage(
                  
                  # Input: Checkbox if file has header ----
                  checkboxInput("header", "Header", TRUE),
+                 
                  # Input: Select separator ----
                  radioButtons("sep", "Separator",
                               choices = c(Comma = ",",
@@ -305,8 +302,8 @@ ui <- fluidPage(
                  #radioButtons("quote", "Quote",
                  #              choices = c(None = "",
                  #                         "Double Quote" = '"',
-                #                          "Single Quote" = "'"),
-                #              selected = '"')
+                 #                          "Single Quote" = "'"),
+                 #              selected = '"')
                ),
                
                # Main Panel: Display inputs ----
@@ -355,7 +352,6 @@ ui <- fluidPage(
                  
                  # Output: Summary Output IC50 calculation ---
                  verbatimTextOutput("IC50summary")
-                 #verbatimTextOutput("output$dataset")
                )
              )
     ),
@@ -363,9 +359,9 @@ ui <- fluidPage(
     # Tab 3 About ----
     tabPanel('About',
              includeMarkdown("about.md")
+             )
     )
   )
-)
 
 
 
@@ -410,14 +406,16 @@ server <- function(input, output) {
   bestmodel <- eventReactive(input$RunIC50, {
     
     # check if model fitting feasible and build the first model
-    firstmodel <- first_function(mydat())
+    mydata <- mydat()
+    names(mydata) <- c("conz", "value")
+    firstmodel <- first_function(mydata)
 
     # build list of models ranked according to AIC
     ModelRanks <- my_mselect(firstmodel, list(LL.3(), LL.5(), W1.3(), W1.4(), W2.3(), W2.4()))
     
     # select the model desired from the input
     myrank <- as.numeric(input$RankSelect)
-    best_model(ModelRanks, mydat(), myrank)
+    best_model(ModelRanks, mydata, myrank)
   })
   
   bestmodelCI <- reactive({
@@ -435,7 +433,7 @@ server <- function(input, output) {
   
   # functions to generate the textoutput -----
   mysummary <- eventReactive(input$RunIC50, {
-    print.res(bestmodel(), bestmodelCI(), mydat(), CI = input$CI/100)
+    print.res(bestmodel(), bestmodelCI(), mydat(), CI = input$CI/100, res.nam = input$file1$name)
   })
   output$IC50summary <- renderPrint(mysummary() )
   
