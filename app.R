@@ -202,11 +202,13 @@ plot.ic50 <- function(fit, CImat, nam="ic50") {
   # get min, max for plot margins
   min.v <- min(fit$origData[, 1], CImat[1, 3])
   max.v <- max(fit$origData[, 1], CImat[1, 4])
+  min.h <- min(fit$origData[, 2], CImat[1, 3])
+  max.h <- max(fit$origData[, 2], CImat[1, 4])
   
   # plot
   plot(fit, main = nam,
        xlim = c(min.v - 1, max.v + 1), 
-       ylim = c(0, 100),
+       ylim = c(min.h - 1, max.h + 1),
        xlab = "concentration",
        ylab = "inhibition")
   points(fit$origData[, 1], fit$origData[, 2], col="blue", pch = "x")
