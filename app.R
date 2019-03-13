@@ -200,12 +200,15 @@ plot.ic50 <- function(fit, CImat, nam="ic50") {
   #    None
   
   # get min, max for plot margins
-  min.v <- min(fit$origData[, 1], CImat[1, 3])
-  max.v <- max(fit$origData[, 1], CImat[1, 4])
-  min.h <- min(fit$origData[, 2], CImat[1, 3])
-  max.h <- max(fit$origData[, 2], CImat[1, 4])
+  min.v <- min(fit$origData[, 1], CImat[1, 3], na.rm = TRUE)
+  max.v <- max(fit$origData[, 1], CImat[1, 4], na.rm = TRUE)
+  min.h <- min(fit$origData[, 2], na.rm = TRUE)
+  max.h <- max(fit$origData[, 2], na.rm = TRUE)
   
-  # plot
+  # set figure margins
+  par(mar = c(4, 4, 3, 8) + 0.1) # set figure margins
+  
+  # create the plot
   plot(fit, main = nam,
        xlim = c(min.v - 1, max.v + 1), 
        ylim = c(min.h - 1, max.h + 1),
@@ -215,6 +218,16 @@ plot.ic50 <- function(fit, CImat, nam="ic50") {
   abline(v = CImat[1, 1], col = "red")
   abline(v = CImat[1, 3])
   abline(v = CImat[1, 4])
+  
+  # add figure legend topright, outside plot region
+  legend("topleft",
+         inset = c(1, 0),
+         xpd = TRUE,
+         legend = c("raw data","fitted values", "fitted curve", "ED50", "ED50 CI"),
+         col = c("blue", "black", "black", "red", "black"),
+         lty = c(NA, NA, 1 , NA, NA),
+         pch = c("x", "o", NA, "|" , "|"),
+         bty = "n")
 }
 
 
