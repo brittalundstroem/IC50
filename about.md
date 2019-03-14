@@ -1,7 +1,7 @@
 An IC 50 Calculator
 =======================
 
-The calculator needs the R packages **shiny** and **drc** to work properly.
+The calculator needs the R packages **shiny**, **drc**, **MASS**, and **markdown** to work properly.
 
 The data need to be imported as a .csv file. The concentration has to be in the first column and the inhibition values in the second. Make sure your table follows this structure before you upload the file.
 
