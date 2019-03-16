@@ -30,15 +30,8 @@ ui <- fluidPage(
                               choices = c(Comma = ",",
                                           Semicolon = ";",
                                           Tab = "\t"),
-                              selected = ";")#,
-                 
-                 # Input: Select quotes ----
-                 #radioButtons("quote", "Quote",
-                 #              choices = c(None = "",
-                 #                         "Double Quote" = '"',
-                 #                          "Single Quote" = "'"),
-                 #              selected = '"')
-               ),
+                              selected = ";")
+                 ),
                
                # Main Panel: Display inputs ----
                mainPanel(
@@ -206,42 +199,29 @@ server <- function(input, output) {
   output$buttons <- renderUI({
     if(is.null(bestmodel())){return()}
     list(
-      # plot download Button
-      downloadButton(outputId = "down1", label = "Download the plot"),
-      
-      # line break ----
-      tags$br(),
-      
       # report download button
-      downloadButton(outputId = "down2", label = "Download the text output")
+      downloadButton(outputId = "down", label = "Download the zip output")
     )
   })
   
-  # Downloadable output in pdf file ----
-  output$down1 <- downloadHandler(
-    filename = function(){
-      paste0("IC50", ".pdf")
-    },
-    content = function(file) {
-      pdf(file)
-      plot.ic50(fit = bestmodel(), CImat = bestmodelCI() )
-      dev.off()
-      },
-    contentType = "application/pdf"
-  )
-
-  # Downloadable output in text file ----
-  output$down2 <- downloadHandler(
-    filename = function(){
-      paste0("IC50", ".txt")
-    },
-    content = function(file) {
-      sink(file)
+  # Downloadable output in zip file ----
+  output$down <- downloadHandler(
+    filename = "IC50_export.zip",
+    content = function(fname) {
+      fs <- c("IC50.txt", "IC50.pdf")
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      sink("IC50.txt")
         print.res(bestmodel(), bestmodelCI(), mydat(), CI = input$CI/100, res.nam = input$file1$name)
       sink()
-    }
+      pdf("IC50.pdf")
+        plot.ic50(fit = bestmodel(), CImat = bestmodelCI() )
+      dev.off()
+      zip::zip(zipfile = fname, files = fs)
+    },
+    contentType = "application/zip"
   )
-
+  
 }
 
 

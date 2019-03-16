@@ -22,7 +22,7 @@ A summary of the model will be printed below the plot.
 
 I strongly recommended to compare several models, since the AIC is no more than an automated selection process. After changes are made, the plot and ouptut can be updated by clicking again on `(re-)calculate IC50`.
 
-The plot and the model can be downloaded as .pdf and .txt files, respectively.
+The visible plot and model output can be downloaded in a .zip archive if desired.
 
 
 
