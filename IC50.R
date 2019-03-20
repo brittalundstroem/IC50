@@ -355,10 +355,10 @@ runApp(list(
                    
                    # heading ----
                    h4("Upload your dataset"),
-                   p("Use the 'Browse' function below to load your dataset in .csv format."),
+                   p("Use the 'Browse' function below to load your dataset in .csv format:"),
                    tags$ul(
-                     tags$li("The first column must contain the concentration data"),
-                     tags$li("The second column must contain the inhibition values")
+                     tags$li("The first column must contain the concentration data,"),
+                     tags$li("The second column must contain the inhibition values.")
                      ),
 
                    # Input: Select a file ----
@@ -384,7 +384,7 @@ runApp(list(
                    
                    # heading ----
                    h4("Table separator"),
-                   tags$p("csv data exported from MS-Excel usually have semicolons (;) as separators,
+                   tags$p("csv data exported from MS-Excel usually have semicolons (;) as separators.
                           If your data uses another separator, select the correct one below."),
                    
                    # Input: Select separator ----
@@ -504,7 +504,9 @@ runApp(list(
                                      )
                                    ),
                            tags$li("Select which model you want to fit from the selection box."),
-                           tags$li("Choose an &alpha-error level for generating the confidence interval, default is 95%.")
+                           tags$li("Choose an",
+                                   HTML("&alpha;"),
+                                   "error level for generating the confidence interval, default is 95%.")
                            )
                          ),
                  tags$li("Click on",
@@ -520,7 +522,7 @@ runApp(list(
                       "."),
                tags$p("The visible plot and model output can be downloaded in a .zip archive if desired."),
                tags$br(),
-               tags$p("2019, Dominic Ritler, Nelson Marreros (Group Lundstr?m-Stadelmann,
+               tags$p("2019, Dominic Ritler, Nelson Marreros (Group Lundström-Stadelmann,
                       Institute of Parasitology, Vetsuisse Bern, University of Bern, Switzerland)")
                )
       )
