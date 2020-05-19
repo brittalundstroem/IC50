@@ -522,8 +522,7 @@ runApp(list(
                       "."),
                tags$p("The visible plot and model output can be downloaded in a .zip archive if desired."),
                tags$br(),
-               tags$p("2019, Dominic Ritler, Nelson Marreros (Group Lundström-Stadelmann,
-                      Institute of Parasitology, Vetsuisse Bern, University of Bern, Switzerland)")
+               tags$p("2019, Dominic Ritler, Nelson Marreros, Britta Lundström-Stadelmann, Institute of Parasitology, Vetsuisse Faculty, University of Bern, Switzerland")
                )
       )
   ),
